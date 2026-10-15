@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Smart TV Central Admin Controller</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="/socket.io/socket.io.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Cinzel:wght@700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #090e1a;
+      --card-bg: #111827;
+      --primary: #3b82f6;
+      --gold: #f59e0b;
+      --success: #10b981;
+      --danger: #ef4444;
+      --text: #f8fafc;
+      --subtext: #94a3b8;
+      --border: rgba(255, 255, 255, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      padding: 24px;
+      min-height: 100vh;
+    }
+
+    .dashboard-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 28px;
+    }
+
+    .title-area h1 {
+      font-size: 24px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .title-area p {
+      font-size: 14px;
+      color: var(--subtext);
+      margin-top: 4px;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 12px;
+    }
+
+    .btn {
+      padding: 10px 18px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+      font-family: inherit;
+      text-decoration: none;
+    }
+
+    .btn-gold {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: #0f172a;
+    }
+
+    .btn-blue {
+      background: #2563eb;
+      color: white;
+    }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .btn:hover {
+      filter: brightness(1.1);
+      transform: translateY(-1px);
+    }
+
+    /* Grid Layout */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 24px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 22px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* 3-TV Status Monitor */
+    .tv-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .tv-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #1f2937;
+      border: 1px solid var(--border);
+      padding: 14px 18px;
+      border-radius: 14px;
+    }
+
+    .tv-meta h4 {
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .tv-meta p {
+      font-size: 12px;
+      color: var(--subtext);
+    }
+
+    .tv-status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 20px;
+    }
+
+    .status-online {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .status-offline {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .dot-indicator {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+
+    .dot-online { background: #34d399; }
+    .dot-offline { background: #f87171; }
+
+    /* Switch toggle */
+    .switch-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 50px;
+      height: 26px;
+    }
+
+    .switch input { opacity: 0; width: 0; height: 0; }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #374151;
+      transition: .4s;
+      border-radius: 34px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider { background-color: var(--success); }
+    input:checked + .slider:before { transform: translateX(24px); }
+
+    /* Visitors Feed */
+    .visitor-feed {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      max-height: 480px;
+      overflow-y: auto;
+    }
+
+    .visitor-item {
+      background: #1f2937;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .visitor-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .visitor-name {
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .visitor-time {
+      font-size: 12px;
+      color: var(--subtext);
+    }
+
+    .visitor-photos-row {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+    }
+
+    .visitor-thumb {
+      width: 70px;
+      height: 70px;
+      border-radius: 8px;
+      object-fit: cover;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .visitor-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    /* Broadcast section */
+    .broadcast-box {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .broadcast-box input {
+      flex: 1;
+      background: #1f2937;
+      border: 1px solid var(--border);
+      color: white;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-family: inherit;
+    }
+
+    /* Photo gallery */
+    .ambient-gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+      gap: 10px;
+      margin-top: 14px;
+      max-height: 250px;
+      overflow-y: auto;
+    }
+
+    .gallery-item {
+      position: relative;
+      height: 90px;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .gallery-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .gallery-item .del-btn {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      background: rgba(239, 68, 68, 0.85);
+      border: none;
+      color: white;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header -->
+  <header class="dashboard-header">
+    <div class="title-area">
+      <h1>🏛️ Smart TV Central Admin</h1>
+      <p>Multi-TV Realtime Gate Check-In & Welcome Display Controller (webOS 22)</p>
+    </div>
+
+    <div class="header-actions">
+      <a href="/gate" target="_blank" class="btn btn-gold">📱 Open Gate QR Portal</a>
+      <a href="/tv?tvId=tv1" target="_blank" class="btn btn-blue">📺 Open Living Room TV (1)</a>
+      <a href="/tv?tvId=tv2" target="_blank" class="btn btn-outline">📺 TV 2</a>
+      <a href="/tv?tvId=tv3" target="_blank" class="btn btn-outline">📺 TV 3</a>
+    </div>
+  </header>
+
+  <!-- Main Grid -->
+  <div class="dashboard-grid">
+
+    <!-- Card 1: 3-TV Device Monitor -->
+    <div class="card">
+      <div class="card-title">
+        <span>📺 Connected Smart TVs (3 Displays)</span>
+        <span style="font-size: 12px; color: var(--subtext);">webOS 22</span>
+      </div>
+
+      <div class="tv-list" id="tv-list">
+        <!-- Rendered via JS -->
+      </div>
+
+      <!-- Quick Message Broadcast -->
+      <div style="margin-top: 24px;">
+        <div style="font-size: 13px; font-weight: 700; color: var(--subtext); text-transform: uppercase; margin-bottom: 8px;">
+          📢 Instant Broadcast Alert to all 3 TVs
+        </div>
+        <form class="broadcast-box" onsubmit="sendBroadcast(event)">
+          <input type="text" id="broadcast-input" placeholder="e.g. Dinner is served in dining hall..." required>
+          <button type="submit" class="btn btn-blue">Send</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Card 2: System Settings -->
+    <div class="card">
+      <div class="card-title">
+        <span>⚙️ Welcome & Display Rules</span>
+      </div>
+
+      <div class="switch-row">
+        <div>
+          <div style="font-weight: 600;">Auto-Approve Visitors</div>
+          <div style="font-size: 12px; color: var(--subtext);">Instantly show visitor on 3 TVs upon gate QR submission</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="auto-approve-toggle" onchange="toggleAutoApprove(this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="switch-row">
+        <div>
+          <div style="font-weight: 600;">Priority Welcome Duration</div>
+          <div style="font-size: 12px; color: var(--subtext);">How long newly arrived visitor is shown</div>
+        </div>
+        <div style="font-weight: 700; color: var(--gold);">5 Minutes (300s)</div>
+      </div>
+
+      <div class="switch-row" style="border: none;">
+        <div>
+          <div style="font-weight: 600;">Ambient Mode</div>
+          <div style="font-size: 12px; color: var(--subtext);">Post 5-min random database slideshow</div>
+        </div>
+        <div style="font-weight: 700; color: var(--success);">Active</div>
+      </div>
+
+      <!-- Ambient Library -->
+      <div style="margin-top: 20px;">
+        <div style="font-size: 13px; font-weight: 700; color: var(--subtext); text-transform: uppercase;">
+          🖼️ Ambient Photo Database (<span id="ambient-count">0</span> photos)
+        </div>
+        <div class="ambient-gallery" id="ambient-gallery"></div>
+      </div>
+    </div>
+
+    <!-- Card 3: Live Visitor Feed & Manual Approval -->
+    <div class="card" style="grid-column: 1 / -1;">
+      <div class="card-title">
+        <span>👥 Gate Visitor Activity & Welcome Queue</span>
+        <button onclick="fetchVisitors()" class="btn btn-outline" style="padding: 6px 12px; font-size: 12px;">Refresh</button>
+      </div>
+
+      <div class="visitor-feed" id="visitor-feed">
+        <!-- Rendered via JS -->
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const socket = io();
+
+    let tvs = {};
+    let visitors = [];
+    let settings = {};
+
+    // Initial load
+    async function init() {
+      await fetchTVs();
+      await fetchSettings();
+      await fetchVisitors();
+      await fetchAmbientPhotos();
+    }
+
+    async function fetchTVs() {
+      const res = await fetch('/api/tv/status');
+      const data = await res.json();
+      if (data.success) {
+        tvs = data.tvs;
+        renderTVs();
+      }
+    }
+
+    function renderTVs() {
+      const tvList = document.getElementById('tv-list');
+      tvList.innerHTML = '';
+      Object.keys(tvs).forEach(k => {
+        const tv = tvs[k];
+        const isOnline = tv.status === 'online';
+        const item = document.createElement('div');
+        item.className = 'tv-item';
+        item.innerHTML = `
+          <div class="tv-meta">
+            <h4>${tv.name}</h4>
+            <p>${tv.location} • Mode: <b style="color: ${tv.currentMode === 'priority_welcome' ? '#f59e0b' : '#34d399'}">${tv.currentMode === 'priority_welcome' ? '5-Min Welcome' : 'Ambient Slideshow'}</b></p>
+          </div>
+          <div class="tv-status-badge ${isOnline ? 'status-online' : 'status-offline'}">
+            <div class="dot-indicator ${isOnline ? 'dot-online' : 'dot-offline'}"></div>
+            ${isOnline ? 'ONLINE' : 'OFFLINE'}
+          </div>
+        `;
+        tvList.appendChild(item);
+      });
+    }
+
+    async function fetchSettings() {
+      const res = await fetch('/api/admin/settings');
+      const data = await res.json();
+      if (data.success) {
+        settings = data.settings;
+        document.getElementById('auto-approve-toggle').checked = settings.autoApprove;
+      }
+    }
+
+    async function toggleAutoApprove(val) {
+      await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ autoApprove: val })
+      });
+    }
+
+    async function fetchVisitors() {
+      const res = await fetch('/api/admin/visitors');
+      const data = await res.json();
+      if (data.success) {
+        visitors = data.visitors;
+        renderVisitors();
+      }
+    }
+
+    function renderVisitors() {
+      const feed = document.getElementById('visitor-feed');
+      feed.innerHTML = '';
+
+      if (visitors.length === 0) {
+        feed.innerHTML = '<div style="text-align: center; color: var(--subtext); padding: 40px;">No visitor check-ins yet. Visitors will appear here when they scan gate QR.</div>';
+        return;
+      }
+
+      visitors.forEach(v => {
+        const item = document.createElement('div');
+        item.className = 'visitor-item';
+
+        const photosHtml = (v.photos || []).map(url => `
+          <img src="${url}" class="visitor-thumb" onclick="window.open('${url}', '_blank')">
+        `).join('');
+
+        const isApproved = v.status === 'approved';
+
+        item.innerHTML = `
+          <div class="visitor-top">
+            <div>
+              <div class="visitor-name">${v.name}</div>
+              <div class="visitor-time">${v.phone || 'No Phone'} • Checked in: ${new Date(v.timestamp).toLocaleTimeString()}</div>
+            </div>
+            <span style="font-size: 12px; font-weight: 700; color: ${isApproved ? '#34d399' : '#f59e0b'}">
+              ${isApproved ? '✓ APPROVED / BROADCASTED' : '⏳ PENDING REVIEW'}
+            </span>
+          </div>
+
+          <div class="visitor-photos-row">
+            ${photosHtml || '<span style="font-size: 13px; color: var(--subtext);">No photos uploaded</span>'}
+          </div>
+
+          <div class="visitor-actions">
+            <button onclick="forceBroadcastVisitor('${v.id}')" class="btn btn-gold" style="font-size: 12px; padding: 6px 14px;">
+              📺 Force Play on 3 TVs (5 Mins)
+            </button>
+            ${!isApproved ? `
+              <button onclick="approveVisitor('${v.id}')" class="btn btn-blue" style="font-size: 12px; padding: 6px 14px;">
+                ✓ Approve
+              </button>
+            ` : ''}
+            <button onclick="rejectVisitor('${v.id}')" class="btn btn-outline" style="font-size: 12px; padding: 6px 14px; color: var(--danger);">
+              ✕ Remove
+            </button>
+          </div>
+        `;
+        feed.appendChild(item);
+      });
+    }
+
+    async function approveVisitor(id) {
+      await fetch(`/api/admin/approve/${id}`, { method: 'POST' });
+      fetchVisitors();
+      fetchAmbientPhotos();
+    }
+
+    async function forceBroadcastVisitor(id) {
+      await fetch(`/api/admin/approve/${id}`, { method: 'POST' });
+      alert('Broadcast triggered to all 3 TVs!');
+    }
+
+    async function rejectVisitor(id) {
+      if (!confirm('Remove this visitor?')) return;
+      await fetch(`/api/admin/reject/${id}`, { method: 'POST' });
+      fetchVisitors();
+    }
+
+    async function sendBroadcast(e) {
+      e.preventDefault();
+      const input = document.getElementById('broadcast-input');
+      const msg = input.value.trim();
+      if (!msg) return;
+
+      await fetch('/api/admin/broadcast-message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg, durationSeconds: 15 })
+      });
+      input.value = '';
+      alert('Alert sent to all 3 TVs!');
+    }
+
+    async function fetchAmbientPhotos() {
+      const res = await fetch('/api/photos/ambient');
+      const data = await res.json();
+      if (data.success) {
+        document.getElementById('ambient-count').innerText = data.photos.length;
+        const gallery = document.getElementById('ambient-gallery');
+        gallery.innerHTML = '';
+        data.photos.forEach(p => {
+          const item = document.createElement('div');
+          item.className = 'gallery-item';
+          item.innerHTML = `
+            <img src="${p.url}">
+            <button class="del-btn" onclick="deletePhoto('${p.id}')">✕</button>
+          `;
+          gallery.appendChild(item);
+        });
+      }
+    }
+
+    async function deletePhoto(id) {
+      if (!confirm('Delete photo from TV ambient slideshow?')) return;
+      await fetch(`/api/photos/${id}`, { method: 'DELETE' });
+      fetchAmbientPhotos();
+    }
+
+    // Realtime events
+    socket.on('TV_STATUS_UPDATE', (updatedTVs) => {
+      tvs = updatedTVs;
+      renderTVs();
+    });
+
+    socket.on('VISITOR_EVENT', () => {
+      fetchVisitors();
+      fetchAmbientPhotos();
+    });
+
+    init();
+  </script>
+</body>
+</html>

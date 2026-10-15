@@ -1,0 +1,16 @@
+{
+  "name": "residence-tv-sync-server",
+  "version": "1.0.0",
+  "description": "Realtime Visitor & 3-TV Sync System for webOS 22",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node src/server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "multer": "^1.4.5-lts.1",
+    "socket.io": "^4.7.5"
+  }
+}

@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Smart TV Welcome Display (webOS 22)</title>
+  <meta name="viewport" content="width=1920, height=1080, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <!-- Load Bundled Socket.io client -->
+  <script src="socket.io.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      background-color: #070d19;
+      color: #ffffff;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Ambient Background Slide Stage */
+    #stage-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      overflow: hidden;
+    }
+
+    .slide-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-size: cover;
+      background-position: center center;
+      opacity: 0;
+      transition: opacity 1.5s ease-in-out;
+      transform: scale(1.0);
+    }
+
+    .slide-layer.active {
+      opacity: 1;
+      animation: kenBurns 12s infinite alternate ease-in-out;
+    }
+
+    @keyframes kenBurns {
+      0% {
+        transform: scale(1.0) translate(0, 0);
+      }
+      100% {
+        transform: scale(1.08) translate(-1%, -1%);
+      }
+    }
+
+    /* Subtle Cinematic Vignette */
+    .vignette-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle, rgba(15, 23, 42, 0.1) 40%, rgba(7, 13, 25, 0.75) 100%),
+                  linear-gradient(to top, rgba(7, 13, 25, 0.8) 0%, transparent 40%),
+                  linear-gradient(to bottom, rgba(7, 13, 25, 0.8) 0%, transparent 30%);
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    /* Header Bar: TV Badge & Live Clock */
+    .tv-header {
+      position: absolute;
+      top: 40px;
+      left: 60px;
+      right: 60px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 10;
+    }
+
+    .residence-branding {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      padding: 12px 24px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .residence-branding .icon {
+      font-size: 24px;
+    }
+
+    .residence-branding .title {
+      font-family: 'Cinzel', serif;
+      font-size: 20px;
+      letter-spacing: 2px;
+      color: #f8fafc;
+      font-weight: 700;
+    }
+
+    .tv-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: #94a3b8;
+      background: rgba(0, 0, 0, 0.4);
+      padding: 4px 12px;
+      border-radius: 20px;
+      margin-left: 10px;
+    }
+
+    .tv-badge .dot {
+      width: 8px;
+      height: 8px;
+      background: #10b981;
+      border-radius: 50%;
+      box-shadow: 0 0 10px #10b981;
+    }
+
+    .clock-widget {
+      text-align: right;
+      background: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      padding: 10px 24px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .clock-widget .time {
+      font-size: 26px;
+      font-weight: 700;
+      color: #f8fafc;
+      letter-spacing: 1px;
+    }
+
+    .clock-widget .date {
+      font-size: 13px;
+      color: #cbd5e1;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    /* Ambient Bottom Caption */
+    .ambient-caption {
+      position: absolute;
+      bottom: 50px;
+      left: 60px;
+      z-index: 10;
+      background: rgba(15, 23, 42, 0.7);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      padding: 12px 28px;
+      border-radius: 12px;
+      border-left: 4px solid #f59e0b;
+      max-width: 600px;
+      transition: all 0.5s ease;
+    }
+
+    .ambient-caption h3 {
+      font-size: 18px;
+      color: #f1f5f9;
+      font-weight: 600;
+    }
+
+    .ambient-caption p {
+      font-size: 13px;
+      color: #94a3b8;
+      margin-top: 2px;
+    }
+
+    /* ==============================================================
+       PRIORITY WELCOME TAKEOVER (5 MINUTES)
+       ============================================================== */
+    #priority-takeover {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 20;
+      display: none;
+      opacity: 0;
+      transition: opacity 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+      background: radial-gradient(circle at center, rgba(15, 23, 42, 0.85) 0%, rgba(3, 7, 18, 0.98) 100%);
+    }
+
+    #priority-takeover.active {
+      display: flex;
+      opacity: 1;
+    }
+
+    .priority-layout {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      padding: 80px 100px;
+      gap: 60px;
+      align-items: center;
+      position: relative;
+    }
+
+    /* Left: Huge Picture Frame */
+    .priority-photo-container {
+      flex: 1.2;
+      height: 820px;
+      border-radius: 28px;
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.8),
+                  0 0 0 1px rgba(255, 255, 255, 0.1),
+                  0 0 40px rgba(245, 158, 11, 0.25);
+    }
+
+    .priority-photo {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: opacity 1s ease-in-out;
+    }
+
+    .photo-count-pill {
+      position: absolute;
+      bottom: 24px;
+      right: 24px;
+      background: rgba(0, 0, 0, 0.65);
+      backdrop-filter: blur(10px);
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 14px;
+      color: #f1f5f9;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    /* Right: Luxury Announcement Details */
+    .priority-info-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 28px;
+    }
+
+    .tag-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(217, 119, 6, 0.1));
+      border: 1px solid rgba(245, 158, 11, 0.4);
+      padding: 8px 24px;
+      border-radius: 999px;
+      width: fit-content;
+    }
+
+    .tag-badge span {
+      font-size: 14px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: #fbbf24;
+      font-weight: 700;
+    }
+
+    .visitor-greeting-title {
+      font-family: 'Cinzel', serif;
+      font-size: 54px;
+      font-weight: 700;
+      line-height: 1.15;
+      color: #ffffff;
+      text-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    }
+
+    .visitor-name-highlight {
+      background: linear-gradient(135deg, #fef08a 0%, #f59e0b 50%, #d97706 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      display: block;
+      margin-top: 10px;
+      font-size: 64px;
+      font-weight: 800;
+    }
+
+    .visitor-subtext {
+      font-size: 22px;
+      line-height: 1.6;
+      color: #cbd5e1;
+      font-weight: 300;
+      border-left: 3px solid #f59e0b;
+      padding-left: 20px;
+    }
+
+    /* 5-Minute Timer Countdown Bar */
+    .timer-container {
+      margin-top: 20px;
+      background: rgba(30, 41, 59, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 18px 24px;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 520px;
+    }
+
+    .timer-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      font-size: 14px;
+      color: #94a3b8;
+    }
+
+    .timer-header .remaining {
+      color: #fbbf24;
+      font-weight: 700;
+    }
+
+    .progress-bar-bg {
+      width: 100%;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(90deg, #10b981, #f59e0b);
+      border-radius: 999px;
+      transition: width 1s linear;
+    }
+
+    /* Floating Realtime Announcement Toast */
+    #broadcast-toast {
+      position: absolute;
+      top: 120px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-30px);
+      background: linear-gradient(135deg, rgba(30, 58, 138, 0.95), rgba(15, 23, 42, 0.95));
+      border: 2px solid #3b82f6;
+      border-radius: 20px;
+      padding: 20px 48px;
+      font-size: 28px;
+      font-weight: 700;
+      color: #ffffff;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(59, 130, 246, 0.4);
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    #broadcast-toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Ambient Photo Slide Layers -->
+  <div id="stage-container">
+    <div id="layer-a" class="slide-layer active"></div>
+    <div id="layer-b" class="slide-layer"></div>
+  </div>
+
+  <div class="vignette-overlay"></div>
+
+  <!-- TV Top Navigation & Branding -->
+  <header class="tv-header">
+    <div class="residence-branding">
+      <span class="icon">🏛️</span>
+      <span class="title" id="residence-title">PATEL RESIDENCE</span>
+      <div class="tv-badge">
+        <div class="dot"></div>
+        <span id="tv-name-tag">Living Room TV (TV 1)</span>
+      </div>
+    </div>
+
+    <div class="clock-widget">
+      <div class="time" id="clock-time">12:00 PM</div>
+      <div class="date" id="clock-date">OCTOBER 15, 2026</div>
+    </div>
+  </header>
+
+  <!-- Ambient Slide Caption -->
+  <div class="ambient-caption" id="ambient-caption">
+    <h3 id="caption-title">Residence Gallery</h3>
+    <p id="caption-sub">Smart TV Ambient Display Mode</p>
+  </div>
+
+  <!-- Priority 5-Minute Welcome Takeover -->
+  <div id="priority-takeover">
+    <div class="priority-layout">
+      <!-- Left Photo Carousel -->
+      <div class="priority-photo-container">
+        <img id="priority-img" class="priority-photo" src="" alt="Visitor Photo">
+        <div class="photo-count-pill" id="photo-count">Photo 1 of 1</div>
+      </div>
+
+      <!-- Right Announcement Details -->
+      <div class="priority-info-container">
+        <div class="tag-badge">
+          <span>✨ GUEST ARRIVAL</span>
+        </div>
+
+        <h1 class="visitor-greeting-title">
+          A Warm Welcome To
+          <span class="visitor-name-highlight" id="visitor-name">John Doe</span>
+        </h1>
+
+        <p class="visitor-subtext" id="visitor-greeting-sub">
+          We are delighted to have you at our home today! Enjoy your visit with family and friends.
+        </p>
+
+        <!-- 5-Minute Live Countdown -->
+        <div class="timer-container">
+          <div class="timer-header">
+            <span>Special Welcome Display</span>
+            <span class="remaining" id="countdown-text">05:00 Remaining</span>
+          </div>
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="progress-fill"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Urgent Broadcast Message Toast -->
+  <div id="broadcast-toast">
+    📢 <span id="broadcast-text">Dinner is served in the dining hall!</span>
+  </div>
+
+  <script>
+    // URL Params for TV ID (tv1, tv2, tv3)
+    const urlParams = new URLSearchParams(window.location.search);
+    const tvId = urlParams.get('tvId') || 'tv1';
+
+    const tvNames = {
+      tv1: 'Living Room TV (TV 1)',
+      tv2: 'Dining Hall TV (TV 2)',
+      tv3: 'Lounge TV (TV 3)'
+    };
+    document.getElementById('tv-name-tag').innerText = tvNames[tvId] || `Smart TV (${tvId})`;
+
+    // State Variables
+    let ambientPhotos = [];
+    let currentAmbientIndex = 0;
+    let activeLayer = 'a';
+    let ambientTimer = null;
+    let priorityWelcomeTimer = null;
+    let countdownInterval = null;
+    let currentMode = 'ambient';
+
+    // Priority State
+    let priorityVisitor = null;
+    let priorityPhotoIndex = 0;
+    let priorityRotationTimer = null;
+    let prioritySecondsRemaining = 300;
+    let priorityTotalSeconds = 300;
+
+    // Clock update
+    function updateClock() {
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const dateStr = now.toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' });
+      document.getElementById('clock-time').innerText = timeStr;
+      document.getElementById('clock-date').innerText = dateStr;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // Pleasant Welcome Chime using Web Audio API
+    function playWelcomeChime() {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6 (Major Arpeggio)
+        notes.forEach((freq, i) => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sine';
+          osc.frequency.value = freq;
+          gain.gain.setValueAtTime(0, audioCtx.currentTime);
+          gain.gain.linearRampToValueAtTime(0.2, audioCtx.currentTime + 0.05 + (i * 0.15));
+          gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.2 + (i * 0.15));
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(audioCtx.currentTime + (i * 0.15));
+          osc.stop(audioCtx.currentTime + 1.5 + (i * 0.15));
+        });
+      } catch (e) {
+        console.log('Audio chime not supported or muted:', e);
+      }
+    }
+
+    // Determine server host (Works both inside webOS Simulator file:// and hosted http://)
+    const SERVER_URL = (window.location.protocol.startsWith('http') && window.location.port === '5000')
+      ? ''
+      : 'http://localhost:5000';
+
+    function getFullPhotoUrl(url) {
+      if (!url) return '';
+      if (url.startsWith('http')) return url;
+      return SERVER_URL + url;
+    }
+
+    // Load Ambient Photos from Server
+    async function fetchAmbientPhotos() {
+      try {
+        const res = await fetch(SERVER_URL + '/api/photos/ambient');
+        const data = await res.json();
+        if (data.success && data.photos.length > 0) {
+          ambientPhotos = data.photos;
+          if (currentMode === 'ambient') {
+            displayNextAmbientSlide();
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch ambient photos:', err);
+      }
+    }
+
+    // Ambient Slide Transition (Dual Layer Cross-Dissolve)
+    function displayNextAmbientSlide() {
+      if (ambientPhotos.length === 0 || currentMode !== 'ambient') return;
+
+      const photo = ambientPhotos[currentAmbientIndex];
+      const nextLayer = activeLayer === 'a' ? 'b' : 'a';
+      const curElem = document.getElementById(`layer-${activeLayer}`);
+      const nextElem = document.getElementById(`layer-${nextLayer}`);
+
+      nextElem.style.backgroundImage = `url('${getFullPhotoUrl(photo.url)}')`;
+      nextElem.classList.add('active');
+      curElem.classList.remove('active');
+
+      activeLayer = nextLayer;
+      document.getElementById('caption-title').innerText = photo.title || 'Patel Residence';
+      document.getElementById('caption-sub').innerText = 'Ambient Slideshow';
+
+      currentAmbientIndex = (currentAmbientIndex + 1) % ambientPhotos.length;
+    }
+
+    function startAmbientRotation() {
+      if (ambientTimer) clearInterval(ambientTimer);
+      ambientTimer = setInterval(displayNextAmbientSlide, 9000);
+      displayNextAmbientSlide();
+    }
+
+    // PRIORITY WELCOME TAKEOVER (5 Minutes)
+    function triggerPriorityWelcome(data) {
+      console.log('Received Priority Welcome:', data);
+      currentMode = 'priority_welcome';
+      priorityVisitor = data;
+      priorityTotalSeconds = data.durationSeconds || 300;
+      prioritySecondsRemaining = priorityTotalSeconds;
+      priorityPhotoIndex = 0;
+
+      // Play Sound
+      playWelcomeChime();
+
+      // Setup UI
+      document.getElementById('visitor-name').innerText = data.name || 'Honored Guest';
+      document.getElementById('residence-title').innerText = (data.residenceName || 'PATEL RESIDENCE').toUpperCase();
+      
+      const takeoverElem = document.getElementById('priority-takeover');
+      takeoverElem.classList.add('active');
+
+      // Photos slideshow inside priority
+      showPriorityPhoto();
+      if (priorityRotationTimer) clearInterval(priorityRotationTimer);
+      if (data.photos && data.photos.length > 1) {
+        priorityRotationTimer = setInterval(showNextPriorityPhoto, 7000);
+      }
+
+      // Countdown Progress Bar
+      if (countdownInterval) clearInterval(countdownInterval);
+      updateCountdownDisplay();
+      countdownInterval = setInterval(() => {
+        prioritySecondsRemaining--;
+        updateCountdownDisplay();
+
+        if (prioritySecondsRemaining <= 0) {
+          endPriorityWelcome();
+        }
+      }, 1000);
+    }
+
+    function showPriorityPhoto() {
+      const photos = priorityVisitor.photos || [];
+      const imgElem = document.getElementById('priority-img');
+      const countElem = document.getElementById('photo-count');
+
+      if (photos.length > 0) {
+        imgElem.src = getFullPhotoUrl(photos[priorityPhotoIndex]);
+        countElem.innerText = `Photo ${priorityPhotoIndex + 1} of ${photos.length}`;
+      } else {
+        // Fallback photo
+        imgElem.src = 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&w=1200&q=80';
+        countElem.innerText = 'Welcome Guest';
+      }
+    }
+
+    function showNextPriorityPhoto() {
+      const photos = priorityVisitor.photos || [];
+      if (photos.length <= 1) return;
+      priorityPhotoIndex = (priorityPhotoIndex + 1) % photos.length;
+      showPriorityPhoto();
+    }
+
+    function updateCountdownDisplay() {
+      const mins = Math.floor(prioritySecondsRemaining / 60);
+      const secs = prioritySecondsRemaining % 60;
+      const formatted = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+      document.getElementById('countdown-text').innerText = `${formatted} Remaining`;
+
+      const pct = (prioritySecondsRemaining / priorityTotalSeconds) * 100;
+      document.getElementById('progress-fill').style.width = `${pct}%`;
+    }
+
+    function endPriorityWelcome() {
+      console.log('Priority welcome finished. Transitioning back to ambient mode.');
+      if (countdownInterval) clearInterval(countdownInterval);
+      if (priorityRotationTimer) clearInterval(priorityRotationTimer);
+
+      const takeoverElem = document.getElementById('priority-takeover');
+      takeoverElem.classList.remove('active');
+      currentMode = 'ambient';
+
+      fetchAmbientPhotos();
+      startAmbientRotation();
+    }
+
+    // Instant Alert Broadcast
+    function showBroadcastToast(msg, durationSecs) {
+      const toast = document.getElementById('broadcast-toast');
+      document.getElementById('broadcast-text').innerText = msg;
+      toast.classList.add('show');
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, (durationSecs || 15) * 1000);
+    }
+
+    // SOCKET.IO REALTIME SETUP
+    const socket = io(SERVER_URL || undefined);
+
+    socket.on('connect', () => {
+      console.log('Connected to Central Sync Hub!');
+      socket.emit('REGISTER_TV', { tvId: tvId });
+    });
+
+    // Heartbeat every 10 seconds
+    setInterval(() => {
+      if (socket.connected) {
+        socket.emit('TV_HEARTBEAT', { tvId: tvId, currentMode: currentMode });
+      }
+    }, 10000);
+
+    // Event: Priority Welcome Show
+    socket.on('TRIGGER_WELCOME_SHOW', (data) => {
+      triggerPriorityWelcome(data);
+    });
+
+    // Event: Instant Broadcast
+    socket.on('BROADCAST_MESSAGE', (data) => {
+      showBroadcastToast(data.message, data.durationSeconds);
+    });
+
+    // Event: Ambient library updated
+    socket.on('AMBIENT_PHOTOS_UPDATED', (photos) => {
+      ambientPhotos = photos;
+    });
+
+    // Initialize
+    fetchAmbientPhotos().then(() => {
+      startAmbientRotation();
+    });
+  </script>
+</body>
+</html>

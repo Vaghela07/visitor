@@ -1,0 +1,19 @@
+{
+  "id": "com.residence.tvdisplay",
+  "version": "1.0.0",
+  "vendor": "ResidenceSmartSync",
+  "type": "web",
+  "main": "index.html",
+  "title": "Smart TV Welcome Display",
+  "icon": "icon.png",
+  "largeIcon": "largeIcon.png",
+  "resolution": "1920x1080",
+  "bgColor": "#0f172a",
+  "transparent": false,
+  "requiredPermissions": [
+    "network"
+  ],
+  "accessibility": {
+    "supportsAudioGuidance": false
+  }
+}

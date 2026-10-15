@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Welcome - Visitor Check-In</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Cinzel:wght@700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background: #090e1a;
+      color: #f8fafc;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 480px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* Header */
+    .header-card {
+      background: linear-gradient(135deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.9));
+      border: 1px solid rgba(245, 158, 11, 0.25);
+      border-radius: 24px;
+      padding: 28px 24px;
+      text-align: center;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .header-card::before {
+      content: '';
+      position: absolute;
+      top: -50px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 150px;
+      height: 150px;
+      background: radial-gradient(circle, rgba(245, 158, 11, 0.25) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .gate-icon {
+      font-size: 40px;
+      margin-bottom: 10px;
+    }
+
+    .estate-title {
+      font-family: 'Cinzel', serif;
+      font-size: 20px;
+      letter-spacing: 2px;
+      color: #fbbf24;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    .welcome-text {
+      font-size: 14px;
+      color: #94a3b8;
+      margin-top: 6px;
+    }
+
+    /* Form Card */
+    .form-card {
+      background: #111827;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 24px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .form-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #cbd5e1;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .required-star {
+      color: #ef4444;
+    }
+
+    .form-input {
+      background: #1f2937;
+      border: 1.5px solid rgba(255, 255, 255, 0.12);
+      color: #ffffff;
+      padding: 14px 18px;
+      border-radius: 14px;
+      font-size: 16px;
+      outline: none;
+      transition: all 0.3s ease;
+      font-family: inherit;
+    }
+
+    .form-input:focus {
+      border-color: #f59e0b;
+      box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.15);
+      background: #1e293b;
+    }
+
+    /* Photo Upload Box */
+    .photo-upload-zone {
+      border: 2px dashed rgba(245, 158, 11, 0.4);
+      background: rgba(245, 158, 11, 0.04);
+      border-radius: 16px;
+      padding: 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .photo-upload-zone:active {
+      transform: scale(0.98);
+      background: rgba(245, 158, 11, 0.08);
+    }
+
+    .upload-icon {
+      font-size: 36px;
+    }
+
+    .upload-prompt {
+      font-size: 14px;
+      font-weight: 600;
+      color: #f3f4f6;
+    }
+
+    .upload-sub {
+      font-size: 12px;
+      color: #94a3b8;
+    }
+
+    /* Thumbnail Previews */
+    .preview-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .preview-item {
+      position: relative;
+      height: 90px;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .preview-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .remove-btn {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 22px;
+      height: 22px;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    /* Submit Button */
+    .submit-btn {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      color: #0f172a;
+      font-size: 16px;
+      font-weight: 700;
+      padding: 16px;
+      border-radius: 14px;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      box-shadow: 0 10px 25px rgba(245, 158, 11, 0.35);
+      transition: all 0.3s ease;
+      font-family: inherit;
+      margin-top: 10px;
+    }
+
+    .submit-btn:active {
+      transform: scale(0.98);
+      filter: brightness(0.9);
+    }
+
+    .submit-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Spinner */
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(0, 0, 0, 0.2);
+      border-top-color: #000;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Success Screen Card */
+    #success-screen {
+      display: none;
+      background: linear-gradient(135deg, #064e3b 0%, #065f46 100%);
+      border: 2px solid #10b981;
+      border-radius: 24px;
+      padding: 36px 24px;
+      text-align: center;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+      animation: fadeIn 0.5s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .success-badge {
+      width: 70px;
+      height: 70px;
+      background: #10b981;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      box-shadow: 0 0 30px rgba(16, 185, 129, 0.5);
+    }
+
+    .success-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    .success-desc {
+      font-size: 15px;
+      color: #a7f3d0;
+      line-height: 1.5;
+    }
+
+    .live-tv-indicator {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 10px 20px;
+      border-radius: 30px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: #34d399;
+      font-weight: 600;
+      margin-top: 10px;
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      background: #34d399;
+      border-radius: 50%;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.7); }
+      70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(52, 211, 153, 0); }
+      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
+    }
+
+    /* Footer */
+    .gate-footer {
+      text-align: center;
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- Header -->
+    <div class="header-card">
+      <div class="gate-icon">🚪✨</div>
+      <div class="estate-title">PATEL RESIDENCE</div>
+      <p class="welcome-text">Gate Visitor Check-In & TV Welcome Screen</p>
+    </div>
+
+    <!-- Check-In Form -->
+    <form id="visitor-form" class="form-card">
+      <div class="form-group">
+        <label class="form-label" for="visitor-name">
+          <span>Your Full Name / Family Name</span>
+          <span class="required-star">*</span>
+        </label>
+        <input type="text" id="visitor-name" class="form-input" placeholder="e.g. Ramesh Patel & Family" required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="visitor-phone">
+          <span>Mobile Number (Optional)</span>
+        </label>
+        <input type="tel" id="visitor-phone" class="form-input" placeholder="e.g. +91 98765 43210">
+      </div>
+
+      <!-- Photo Upload -->
+      <div class="form-group">
+        <label class="form-label">
+          <span>Group Photo / Selfie with Host</span>
+        </label>
+
+        <input type="file" id="file-input" accept="image/*" multiple style="display: none;">
+        
+        <div class="photo-upload-zone" onclick="document.getElementById('file-input').click()">
+          <div class="upload-icon">📸</div>
+          <div class="upload-prompt">Tap to Capture / Choose Photos</div>
+          <div class="upload-sub">Take a group photo at the gate to show on the TVs!</div>
+        </div>
+
+        <div class="preview-grid" id="preview-grid"></div>
+      </div>
+
+      <!-- Submit -->
+      <button type="submit" id="submit-btn" class="submit-btn">
+        <span id="btn-text">Check In & Broadcast to TVs</span>
+        <div id="btn-spinner" class="spinner" style="display: none;"></div>
+      </button>
+    </form>
+
+    <!-- Success Confirmation -->
+    <div id="success-screen">
+      <div class="success-badge">✓</div>
+      <h2 class="success-title">Welcome to Patel Residence!</h2>
+      <p class="success-desc" id="success-message">
+        Thank you! Your photo and welcome announcement are now playing live across all 3 residence smart TVs.
+      </p>
+
+      <div class="live-tv-indicator">
+        <div class="pulse-dot"></div>
+        <span>Broadcasting Live to 3 TVs (5 Min Welcome)</span>
+      </div>
+
+      <button onclick="resetForm()" style="background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 12px 24px; border-radius: 12px; margin-top: 15px; cursor: pointer; font-family: inherit; font-weight: 600;">
+        Check-In Another Visitor
+      </button>
+    </div>
+
+    <div class="gate-footer">
+      Powered by Smart TV Visitor Welcome Hub • webOS 22 Realtime Sync
+    </div>
+  </div>
+
+  <script>
+    const fileInput = document.getElementById('file-input');
+    const previewGrid = document.getElementById('preview-grid');
+    const visitorForm = document.getElementById('visitor-form');
+    const submitBtn = document.getElementById('submit-btn');
+    const btnText = document.getElementById('btn-text');
+    const btnSpinner = document.getElementById('btn-spinner');
+    const successScreen = document.getElementById('success-screen');
+
+    let selectedFiles = [];
+
+    // Client-side Image Compression (Reduces 15MB phone photos to ~600KB JPEG)
+    async function compressImage(file) {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (e) => {
+          const img = new Image();
+          img.src = e.target.result;
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+            const maxDimension = 1600;
+
+            if (width > maxDimension || height > maxDimension) {
+              if (width > height) {
+                height = Math.round((height * maxDimension) / width);
+                width = maxDimension;
+              } else {
+                width = Math.round((width * maxDimension) / height);
+                height = maxDimension;
+              }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            canvas.toBlob((blob) => {
+              resolve(new File([blob], file.name.replace(/\.[^/.]+$/, ".jpg"), { type: 'image/jpeg' }));
+            }, 'image/jpeg', 0.85);
+          };
+        };
+      });
+    }
+
+    // Handle File Selection
+    fileInput.addEventListener('change', async (e) => {
+      const files = Array.from(e.target.files);
+      for (const file of files) {
+        const compressed = await compressImage(file);
+        selectedFiles.push(compressed);
+      }
+      renderPreviews();
+      fileInput.value = '';
+    });
+
+    function renderPreviews() {
+      previewGrid.innerHTML = '';
+      selectedFiles.forEach((file, index) => {
+        const url = URL.createObjectURL(file);
+        const item = document.createElement('div');
+        item.className = 'preview-item';
+        item.innerHTML = `
+          <img src="${url}">
+          <button type="button" class="remove-btn" onclick="removePhoto(${index})">✕</button>
+        `;
+        previewGrid.appendChild(item);
+      });
+    }
+
+    window.removePhoto = (index) => {
+      selectedFiles.splice(index, 1);
+      renderPreviews();
+    };
+
+    // Form Submission
+    visitorForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('visitor-name').value.trim();
+      const phone = document.getElementById('visitor-phone').value.trim();
+
+      if (!name) return alert('Please enter your name.');
+
+      submitBtn.disabled = true;
+      btnText.style.display = 'none';
+      btnSpinner.style.display = 'block';
+
+      try {
+        const formData = new FormData();
+        formData.append('name', name);
+        formData.append('phone', phone);
+        selectedFiles.forEach(file => {
+          formData.append('photos', file);
+        });
+
+        const response = await fetch('/api/visitor/checkin', {
+          method: 'POST',
+          body: formData
+        });
+        const result = await response.json();
+
+        if (result.success) {
+          visitorForm.style.display = 'none';
+          successScreen.style.display = 'flex';
+          document.getElementById('success-message').innerText = 
+            `Thank you ${name}! Your greeting is now broadcasting on the residence screens!`;
+        } else {
+          alert('Submission error: ' + (result.message || 'Unknown error'));
+        }
+      } catch (err) {
+        console.error('Checkin error:', err);
+        alert('Network error. Please try again.');
+      } finally {
+        submitBtn.disabled = false;
+        btnText.style.display = 'block';
+        btnSpinner.style.display = 'none';
+      }
+    });
+
+    window.resetForm = () => {
+      selectedFiles = [];
+      renderPreviews();
+      visitorForm.reset();
+      visitorForm.style.display = 'flex';
+      successScreen.style.display = 'none';
+    };
+  </script>
+</body>
+</html>
